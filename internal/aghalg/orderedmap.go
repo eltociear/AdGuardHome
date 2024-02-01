@@ -5,23 +5,25 @@ import (
 )
 
 // OrderedMap is the implementation of the ordered map data structure.
-type OrderedMap[K comparable, T any] struct {
-	vals map[K]T
+type OrderedMap[K comparable, V any] struct {
+	vals map[K]V
 	cmp  func(a, b K) int
 	keys []K
 }
 
 // NewOrderedMap initializes the new instance of ordered map.  cmp is a sort
 // function.
-func NewOrderedMap[K comparable, T any](cmp func(a, b K) int) OrderedMap[K, T] {
-	return OrderedMap[K, T]{
-		vals: make(map[K]T),
+//
+// TODO(s.chzhen):  Use cmp.Compare in Go 1.21
+func NewOrderedMap[K comparable, V any](cmp func(a, b K) int) OrderedMap[K, V] {
+	return OrderedMap[K, V]{
+		vals: make(map[K]V),
 		cmp:  cmp,
 	}
 }
 
-// Add adds val with key to the ordered map.
-func (m *OrderedMap[K, T]) Add(key K, val T) {
+// Set adds val with key to the ordered map.
+func (m *OrderedMap[K, V]) Set(key K, val V) {
 	i, has := slices.BinarySearchFunc(m.keys, key, m.cmp)
 	if has {
 		m.keys[i] = key
@@ -35,18 +37,16 @@ func (m *OrderedMap[K, T]) Add(key K, val T) {
 }
 
 // Del removes the value by key from the ordered map.
-func (m *OrderedMap[K, T]) Del(key K) {
+func (m *OrderedMap[K, V]) Del(key K) {
 	i, has := slices.BinarySearchFunc(m.keys, key, m.cmp)
-	if !has {
-		return
+	if has {
+		m.keys = slices.Delete(m.keys, i, 1)
+		delete(m.vals, key)
 	}
-
-	m.keys = slices.Delete(m.keys, i, 1)
-	delete(m.vals, key)
 }
 
 // Range calls cb for each element of the map.  If cb returns false it stops.
-func (m *OrderedMap[K, T]) Range(cb func(K, T) bool) {
+func (m *OrderedMap[K, V]) Range(cb func(K, V) (cont bool)) {
 	for _, k := range m.keys {
 		if !cb(k, m.vals[k]) {
 			return

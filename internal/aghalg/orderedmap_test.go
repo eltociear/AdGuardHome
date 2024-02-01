@@ -21,7 +21,7 @@ func TestNewOrderedMap(t *testing.T) {
 
 		nums := []int{}
 		for i, r := range letters {
-			m.Add(r, i)
+			m.Set(r, i)
 			nums = append(nums, i)
 		}
 
@@ -44,7 +44,7 @@ func TestNewOrderedMap(t *testing.T) {
 		}
 
 		gotLetters := []string{}
-		m.Range(func(k string, v int) bool {
+		m.Range(func(k string, _ int) bool {
 			gotLetters = append(gotLetters, k)
 
 			return true
