@@ -43,11 +43,28 @@ bump_minor='/^v[0-9]+\.[0-9]+\.0$/ {
 }
 
 {
-	printf("invalid release version: \"%s\"\n", $0);
+	printf("invalid minor release version: \"%s\"\n", $0);
 
 	exit 1;
 }'
 readonly bump_minor
+
+# bump_patch is an awk program that reads a patch release version, increments
+# the patch part of it, and prints the next version.
+#
+# shellcheck disable=SC2016
+bump_patch='/^v[0-9]+\.[0-9]+\.[0-9]+$/ {
+	print($1 "." $2 "." $3 + 1);
+
+	next;
+}
+
+{
+	printf("invalid patch release version: \"%s\"\n", $0);
+
+	exit 1;
+}'
+readonly bump_patch
 
 # get_last_minor_zero returns the last new minor release.
 get_last_minor_zero() {
@@ -74,16 +91,8 @@ readonly channel
 case "$channel"
 in
 ('development')
-	# commit_number is the number of current commit within the branch.
-	commit_number="$( git rev-list --count master..HEAD )"
-	readonly commit_number
-
-	# The development builds are described with a combination of unset semantic
-	# version, the commit's number within the branch, and the commit hash, e.g.:
-	#
-	#   v0.0.0-dev.5-a1b2c3d4
-	#
-	version="v0.0.0-dev.${commit_number}+$( git rev-parse --short HEAD )"
+	# Use the dummy version for development builds.
+	version='v0.0.0'
 	;;
 ('edge')
 	# last_minor_zero is the last new minor release.
@@ -128,15 +137,42 @@ in
 
 	version="$last_tag"
 	;;
+('candidate')
+	# This pseudo-channel is used to set a proper versions into release
+	# candidate builds.
+
+	# last_beta is the most recent beta version git tag.  Assume the release
+	# candidate branch is always based on the following version's beta branch
+	# and thus the latest beta tag will be described.
+	last_beta="$( git describe --abbrev=0 )"
+	readonly last_tag
+
+	# current_branch is the name of the branch currently checked out.  It's
+	# assumed to be a release candidate branch and have a name like:
+	#
+	#   rc-v1.23.456
+	#
+	current_branch="$( git rev-parse --abbrev-ref HEAD )"
+	readonly current_branch
+
+	# num_commits_since_beta is the number of commits within the branch.
+	num_commits_since_beta="$( git rev-list --count "$last_beta".."$current_branch" )"
+	readonly num_commits_since_beta
+
+	release_version="$( echo "$current_branch" | cut -d '-' -f 2 )"
+	readonly release_version
+
+	version="${release_version}-rc.${num_commits_since_beta}"
+	;;
 (*)
 	echo "invalid channel '$channel', supported values are\
-		'development', 'edge', 'beta', and 'release'" 1>&2
+		'development', 'edge', 'beta', 'release' and 'candidate'" 1>&2
 	exit 1
 	;;
 esac
 
 # Finally, make sure that we don't output invalid versions.
-if ! echo "$version" | grep -E -e '^v[0-9]+\.[0-9]+\.[0-9]+(-(a|b|dev)\.[0-9]+)?(\+[[:xdigit:]]+)?$' -q
+if ! echo "$version" | grep -E -e '^v[0-9]+\.[0-9]+\.[0-9]+(-(a|b|dev|rc)\.[0-9]+)?(\+[[:xdigit:]]+)?$' -q
 then
 	echo "generated an invalid version '$version'" 1>&2
 
