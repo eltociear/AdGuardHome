@@ -5,13 +5,29 @@ import (
 	"net/netip"
 
 	"github.com/AdguardTeam/AdGuardHome/internal/aghalg"
-	"golang.org/x/exp/slices"
 )
 
-// macUID contains MAC and UID.
-type macUID struct {
-	mac net.HardwareAddr
-	uid UID
+// macKey contains MAC as byte array of 6, 8, or 20 bytes.
+type macKey any
+
+func macToKey(mac net.HardwareAddr) (key macKey) {
+	switch len(mac) {
+	case 6:
+		arr := [6]byte{}
+		copy(arr[:], mac[:])
+
+		return arr
+	case 8:
+		arr := [8]byte{}
+		copy(arr[:], mac[:])
+
+		return arr
+	default:
+		arr := [20]byte{}
+		copy(arr[:], mac[:])
+
+		return arr
+	}
 }
 
 // clientIndex stores all information about persistent clients.
@@ -20,9 +36,9 @@ type clientIndex struct {
 
 	ipToUID map[netip.Addr]UID
 
-	subnetToUID aghalg.OrderedMap[netip.Prefix, UID]
+	subnetToUID aghalg.SortedMap[netip.Prefix, UID]
 
-	macUIDs []*macUID
+	macToUID map[macKey]UID
 
 	uidToClient map[UID]*persistentClient
 }
@@ -32,7 +48,8 @@ func NewClientIndex() (ci *clientIndex) {
 	return &clientIndex{
 		clientIDToUID: map[string]UID{},
 		ipToUID:       map[netip.Addr]UID{},
-		subnetToUID:   aghalg.NewOrderedMap[netip.Prefix, UID](subnetCompare),
+		subnetToUID:   aghalg.NewSortedMap[netip.Prefix, UID](subnetCompare),
+		macToUID:      map[macKey]UID{},
 		uidToClient:   map[UID]*persistentClient{},
 	}
 }
@@ -52,14 +69,15 @@ func (ci *clientIndex) add(c *persistentClient) {
 	}
 
 	for _, mac := range c.MACs {
-		ci.macUIDs = append(ci.macUIDs, &macUID{mac, c.UID})
+		k := macToKey(mac)
+		ci.macToUID[k] = c.UID
 	}
 
 	ci.uidToClient[c.UID] = c
 }
 
-// contains returns true if the index already has information about persistent
-// client.
+// contains returns true if the index contains a persistent client with at least
+// a single identifier contained by c.
 func (ci *clientIndex) contains(c *persistentClient) (ok bool) {
 	for _, id := range c.ClientIDs {
 		_, ok = ci.clientIDToUID[id]
@@ -76,7 +94,7 @@ func (ci *clientIndex) contains(c *persistentClient) (ok bool) {
 	}
 
 	for _, pref := range c.Subnets {
-		ci.subnetToUID.Range(func(p netip.Prefix, id UID) bool {
+		ci.subnetToUID.Range(func(p netip.Prefix, _ UID) (cont bool) {
 			if pref == p {
 				ok = true
 
@@ -92,10 +110,8 @@ func (ci *clientIndex) contains(c *persistentClient) (ok bool) {
 	}
 
 	for _, mac := range c.MACs {
-		ok = slices.ContainsFunc(ci.macUIDs, func(muid *macUID) bool {
-			return slices.Compare(mac, muid.mac) == 0
-		})
-
+		k := macToKey(mac)
+		_, ok = ci.macToUID[k]
 		if ok {
 			return true
 		}
@@ -104,7 +120,7 @@ func (ci *clientIndex) contains(c *persistentClient) (ok bool) {
 	return false
 }
 
-// find finds persistent client by string represenation of the client ID, IP
+// find finds persistent client by string representation of the client ID, IP
 // address, or MAC.
 func (ci *clientIndex) find(id string) (c *persistentClient, ok bool) {
 	uid, found := ci.clientIDToUID[id]
@@ -114,7 +130,11 @@ func (ci *clientIndex) find(id string) (c *persistentClient, ok bool) {
 
 	ip, err := netip.ParseAddr(id)
 	if err == nil {
-		return ci.findByIP(ip)
+		// MAC addresses can be successfully parsed as IP addresses.
+		c, found = ci.findByIP(ip)
+		if found {
+			return c, true
+		}
 	}
 
 	mac, err := net.ParseMAC(id)
@@ -132,7 +152,7 @@ func (ci *clientIndex) findByIP(ip netip.Addr) (c *persistentClient, found bool)
 		return ci.uidToClient[uid], true
 	}
 
-	ci.subnetToUID.Range(func(pref netip.Prefix, id UID) bool {
+	ci.subnetToUID.Range(func(pref netip.Prefix, id UID) (cont bool) {
 		if pref.Contains(ip) {
 			uid, found = id, true
 
@@ -151,17 +171,8 @@ func (ci *clientIndex) findByIP(ip netip.Addr) (c *persistentClient, found bool)
 
 // find finds persistent client by MAC.
 func (ci *clientIndex) findByMAC(mac net.HardwareAddr) (c *persistentClient, found bool) {
-	var uid UID
-	found = slices.ContainsFunc(ci.macUIDs, func(muid *macUID) bool {
-		if slices.Compare(mac, muid.mac) == 0 {
-			uid = muid.uid
-
-			return true
-		}
-
-		return false
-	})
-
+	k := macToKey(mac)
+	uid, found := ci.macToUID[k]
 	if found {
 		return ci.uidToClient[uid], true
 	}
@@ -184,10 +195,8 @@ func (ci *clientIndex) del(c *persistentClient) {
 	}
 
 	for _, mac := range c.MACs {
-		ci.macUIDs = append(ci.macUIDs, &macUID{mac, c.UID})
-		slices.DeleteFunc(ci.macUIDs, func(muid *macUID) bool {
-			return slices.Compare(mac, muid.mac) == 0
-		})
+		k := macToKey(mac)
+		delete(ci.macToUID, k)
 	}
 
 	delete(ci.uidToClient, c.UID)

@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNewOrderedMap(t *testing.T) {
-	var m OrderedMap[string, int]
+func TestNewSortedMap(t *testing.T) {
+	var m SortedMap[string, int]
 
 	letters := []string{}
 	for i := 0; i < 10; i++ {
@@ -17,7 +17,7 @@ func TestNewOrderedMap(t *testing.T) {
 	}
 
 	t.Run("create_and_fill", func(t *testing.T) {
-		m = NewOrderedMap[string, int](strings.Compare)
+		m = NewSortedMap[string, int](strings.Compare)
 
 		nums := []int{}
 		for i, r := range letters {
@@ -36,12 +36,15 @@ func TestNewOrderedMap(t *testing.T) {
 
 		assert.Equal(t, letters, gotLetters)
 		assert.Equal(t, nums, gotNums)
+		assert.Equal(t, nums[0], m.Get(letters[0]))
 	})
 
 	t.Run("clear", func(t *testing.T) {
-		for _, r := range letters {
-			m.Del(r)
-		}
+		lastLetter := letters[len(letters)-1]
+		m.Del(lastLetter)
+		assert.Equal(t, 0, m.Get(lastLetter))
+
+		m.Clear()
 
 		gotLetters := []string{}
 		m.Range(func(k string, _ int) bool {
