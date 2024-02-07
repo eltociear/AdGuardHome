@@ -36,13 +36,18 @@ func TestNewSortedMap(t *testing.T) {
 
 		assert.Equal(t, letters, gotLetters)
 		assert.Equal(t, nums, gotNums)
-		assert.Equal(t, nums[0], m.Get(letters[0]))
+
+		n, ok := m.Get(letters[0])
+		assert.True(t, ok)
+		assert.Equal(t, nums[0], n)
 	})
 
 	t.Run("clear", func(t *testing.T) {
 		lastLetter := letters[len(letters)-1]
 		m.Del(lastLetter)
-		assert.Equal(t, 0, m.Get(lastLetter))
+
+		_, ok := m.Get(lastLetter)
+		assert.False(t, ok)
 
 		m.Clear()
 
@@ -54,5 +59,37 @@ func TestNewSortedMap(t *testing.T) {
 		})
 
 		assert.Len(t, gotLetters, 0)
+	})
+}
+
+func TestNewSortedMap_nil(t *testing.T) {
+	const (
+		key = "key"
+		val = "val"
+	)
+
+	var m SortedMap[string, string]
+
+	assert.Panics(t, func() {
+		m.Set(key, val)
+	})
+
+	assert.NotPanics(t, func() {
+		_, ok := m.Get(key)
+		assert.False(t, ok)
+	})
+
+	assert.NotPanics(t, func() {
+		m.Range(func(_, _ string) (cont bool) {
+			return true
+		})
+	})
+
+	assert.NotPanics(t, func() {
+		m.Del(key)
+	})
+
+	assert.NotPanics(t, func() {
+		m.Clear()
 	})
 }
