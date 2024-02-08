@@ -12,6 +12,19 @@ import (
 
 var testIPv4 = netip.AddrFrom4([4]byte{1, 2, 3, 4})
 
+func idIndex(m map[string]*persistentClient) (ci *clientIndex) {
+	ci = NewClientIndex()
+
+	for id, c := range m {
+		c.ClientIDs = []string{id}
+		c.UID = MustNewUID()
+
+		ci.add(c)
+	}
+
+	return ci
+}
+
 func TestApplyAdditionalFiltering(t *testing.T) {
 	var err error
 
@@ -22,7 +35,7 @@ func TestApplyAdditionalFiltering(t *testing.T) {
 	}, nil)
 	require.NoError(t, err)
 
-	Context.clients.idIndex = map[string]*persistentClient{
+	Context.clients.clientIndex = idIndex(map[string]*persistentClient{
 		"default": {
 			UseOwnSettings:      false,
 			safeSearchConf:      filtering.SafeSearchConfig{Enabled: false},
@@ -44,7 +57,7 @@ func TestApplyAdditionalFiltering(t *testing.T) {
 			SafeBrowsingEnabled: false,
 			ParentalEnabled:     false,
 		},
-	}
+	})
 
 	testCases := []struct {
 		name                string
@@ -108,7 +121,7 @@ func TestApplyAdditionalFiltering_blockedServices(t *testing.T) {
 	}, nil)
 	require.NoError(t, err)
 
-	Context.clients.idIndex = map[string]*persistentClient{
+	Context.clients.clientIndex = idIndex(map[string]*persistentClient{
 		"default": {
 			UseOwnBlockedServices: false,
 		},
@@ -139,7 +152,7 @@ func TestApplyAdditionalFiltering_blockedServices(t *testing.T) {
 			},
 			UseOwnBlockedServices: true,
 		},
-	}
+	})
 
 	testCases := []struct {
 		name    string

@@ -1,6 +1,7 @@
 package aghalg
 
 import (
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
@@ -18,7 +19,7 @@ type SortedMap[K comparable, V any] struct {
 // TODO(s.chzhen):  Use cmp.Compare in Go 1.21.
 func NewSortedMap[K comparable, V any](cmp func(a, b K) (res int)) SortedMap[K, V] {
 	return SortedMap[K, V]{
-		vals: make(map[K]V),
+		vals: map[K]V{},
 		cmp:  cmp,
 	}
 }
@@ -69,7 +70,7 @@ func (m *SortedMap[K, V]) Clear() {
 
 	// TODO(s.chzhen):  Use built-in clear in Go 1.21.
 	m.keys = nil
-	m.vals = make(map[K]V)
+	maps.Clear(m.vals)
 }
 
 // Range calls cb for each element of the map, sorted by m.cmp.  If cb returns

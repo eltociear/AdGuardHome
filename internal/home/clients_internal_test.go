@@ -68,6 +68,7 @@ func TestClients(t *testing.T) {
 
 		c := &persistentClient{
 			Name: "client1",
+			UID:  MustNewUID(),
 			IPs:  []netip.Addr{cli1IP, cliIPv6},
 		}
 
@@ -78,6 +79,7 @@ func TestClients(t *testing.T) {
 
 		c = &persistentClient{
 			Name: "client2",
+			UID:  MustNewUID(),
 			IPs:  []netip.Addr{cli2IP},
 		}
 

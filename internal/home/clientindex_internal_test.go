@@ -1,6 +1,7 @@
 package home
 
 import (
+	"net/netip"
 	"testing"
 
 	"github.com/AdguardTeam/AdGuardHome/internal/filtering"
@@ -97,11 +98,19 @@ func TestClientIndex(t *testing.T) {
 	})
 
 	t.Run("contains_delete", func(t *testing.T) {
-		ok := ci.contains(client1)
-		require.True(t, ok)
+		err := ci.clashes(client1)
+		require.NoError(t, err)
+
+		dup := &persistentClient{
+			Name: "client_with_the_same_ip_as_client1",
+			IPs:  []netip.Addr{netip.MustParseAddr(cliIP1)},
+			UID:  MustNewUID(),
+		}
+		err = ci.clashes(dup)
+		require.Error(t, err)
 
 		ci.del(client1)
-		ok = ci.contains(client1)
-		require.False(t, ok)
+		err = ci.clashes(dup)
+		require.NoError(t, err)
 	})
 }
