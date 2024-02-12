@@ -136,7 +136,7 @@ in
 	# candidate branch is always based on the following version's beta branch
 	# and thus the latest beta tag will be described.
 	last_beta="$( git describe --abbrev=0 )"
-	readonly last_tag
+	readonly last_beta
 
 	# current_branch is the name of the branch currently checked out.  It's
 	# assumed to be a release candidate branch and have a name like:
