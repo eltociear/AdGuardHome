@@ -49,23 +49,6 @@ bump_minor='/^v[0-9]+\.[0-9]+\.0$/ {
 }'
 readonly bump_minor
 
-# bump_patch is an awk program that reads a patch release version, increments
-# the patch part of it, and prints the next version.
-#
-# shellcheck disable=SC2016
-bump_patch='/^v[0-9]+\.[0-9]+\.[0-9]+$/ {
-	print($1 "." $2 "." $3 + 1);
-
-	next;
-}
-
-{
-	printf("invalid patch release version: \"%s\"\n", $0);
-
-	exit 1;
-}'
-readonly bump_patch
-
 # get_last_minor_zero returns the last new minor release.
 get_last_minor_zero() {
 	# List all tags.  Then, select those that fit the pattern of a new minor
@@ -91,8 +74,16 @@ readonly channel
 case "$channel"
 in
 ('development')
-	# Use the dummy version for development builds.
-	version='v0.0.0'
+	# commit_number is the number of current commit within the branch.
+	commit_number="$( git rev-list --count master..HEAD )"
+	readonly commit_number
+
+	# The development builds are described with a combination of unset semantic
+	# version, the commit's number within the branch, and the commit hash, e.g.:
+	#
+	#   v0.0.0-dev.5-a1b2c3d4
+	#
+	version="v0.0.0-dev.${commit_number}+$( git rev-parse --short HEAD )"
 	;;
 ('edge')
 	# last_minor_zero is the last new minor release.
@@ -159,6 +150,7 @@ in
 	num_commits_since_beta="$( git rev-list --count "$last_beta".."$current_branch" )"
 	readonly num_commits_since_beta
 
+	# release_version is the final version of this release candidate.
 	release_version="$( echo "$current_branch" | cut -d '-' -f 2 )"
 	readonly release_version
 
