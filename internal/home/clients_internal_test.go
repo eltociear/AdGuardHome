@@ -113,6 +113,7 @@ func TestClients(t *testing.T) {
 	t.Run("add_fail_name", func(t *testing.T) {
 		ok, err := clients.add(&persistentClient{
 			Name: "client1",
+			UID:  MustNewUID(),
 			IPs:  []netip.Addr{netip.MustParseAddr("1.2.3.5")},
 		})
 		require.NoError(t, err)
@@ -122,6 +123,7 @@ func TestClients(t *testing.T) {
 	t.Run("add_fail_ip", func(t *testing.T) {
 		ok, err := clients.add(&persistentClient{
 			Name: "client3",
+			UID:  MustNewUID(),
 		})
 		require.Error(t, err)
 		assert.False(t, ok)
@@ -130,6 +132,7 @@ func TestClients(t *testing.T) {
 	t.Run("update_fail_ip", func(t *testing.T) {
 		err := clients.update(&persistentClient{Name: "client1"}, &persistentClient{
 			Name: "client1",
+			UID:  MustNewUID(),
 		})
 		assert.Error(t, err)
 	})
@@ -147,6 +150,7 @@ func TestClients(t *testing.T) {
 
 		err := clients.update(prev, &persistentClient{
 			Name: "client1",
+			UID:  MustNewUID(),
 			IPs:  []netip.Addr{cliNewIP},
 		})
 		require.NoError(t, err)
@@ -161,6 +165,7 @@ func TestClients(t *testing.T) {
 
 		err = clients.update(prev, &persistentClient{
 			Name:           "client1-renamed",
+			UID:            MustNewUID(),
 			IPs:            []netip.Addr{cliNewIP},
 			UseOwnSettings: true,
 		})
@@ -262,6 +267,7 @@ func TestClientsWHOIS(t *testing.T) {
 
 		ok, err := clients.add(&persistentClient{
 			Name: "client1",
+			UID:  MustNewUID(),
 			IPs:  []netip.Addr{netip.MustParseAddr("1.1.1.2")},
 		})
 		require.NoError(t, err)
@@ -284,6 +290,7 @@ func TestClientsAddExisting(t *testing.T) {
 		// Add a client.
 		ok, err := clients.add(&persistentClient{
 			Name:    "client1",
+			UID:     MustNewUID(),
 			IPs:     []netip.Addr{ip, netip.MustParseAddr("1:2:3::4")},
 			Subnets: []netip.Prefix{netip.MustParsePrefix("2.2.2.0/24")},
 			MACs:    []net.HardwareAddr{{0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA}},
@@ -334,6 +341,7 @@ func TestClientsAddExisting(t *testing.T) {
 		// Add a new client with the same IP as for a client with MAC.
 		ok, err := clients.add(&persistentClient{
 			Name: "client2",
+			UID:  MustNewUID(),
 			IPs:  []netip.Addr{ip},
 		})
 		require.NoError(t, err)
@@ -342,6 +350,7 @@ func TestClientsAddExisting(t *testing.T) {
 		// Add a new client with the IP from the first client's IP range.
 		ok, err = clients.add(&persistentClient{
 			Name: "client3",
+			UID:  MustNewUID(),
 			IPs:  []netip.Addr{netip.MustParseAddr("2.2.2.2")},
 		})
 		require.NoError(t, err)
@@ -355,6 +364,7 @@ func TestClientsCustomUpstream(t *testing.T) {
 	// Add client with upstreams.
 	ok, err := clients.add(&persistentClient{
 		Name: "client1",
+		UID:  MustNewUID(),
 		IPs:  []netip.Addr{netip.MustParseAddr("1.1.1.1"), netip.MustParseAddr("1:2:3::4")},
 		Upstreams: []string{
 			"1.1.1.1",

@@ -12,7 +12,9 @@ import (
 
 var testIPv4 = netip.AddrFrom4([4]byte{1, 2, 3, 4})
 
-func idIndex(m map[string]*persistentClient) (ci *clientIndex) {
+// newIDIndex is a helper function that returns a client index filled with
+// persistent clients from the m.
+func newIDIndex(m map[string]*persistentClient) (ci *clientIndex) {
 	ci = NewClientIndex()
 
 	for id, c := range m {
@@ -35,7 +37,7 @@ func TestApplyAdditionalFiltering(t *testing.T) {
 	}, nil)
 	require.NoError(t, err)
 
-	Context.clients.clientIndex = idIndex(map[string]*persistentClient{
+	Context.clients.clientIndex = newIDIndex(map[string]*persistentClient{
 		"default": {
 			UseOwnSettings:      false,
 			safeSearchConf:      filtering.SafeSearchConfig{Enabled: false},
@@ -121,7 +123,7 @@ func TestApplyAdditionalFiltering_blockedServices(t *testing.T) {
 	}, nil)
 	require.NoError(t, err)
 
-	Context.clients.clientIndex = idIndex(map[string]*persistentClient{
+	Context.clients.clientIndex = newIDIndex(map[string]*persistentClient{
 		"default": {
 			UseOwnBlockedServices: false,
 		},

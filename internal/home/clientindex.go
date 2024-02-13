@@ -16,33 +16,32 @@ type macKey any
 func macToKey(mac net.HardwareAddr) (key macKey) {
 	switch len(mac) {
 	case 6:
-		arr := *(*[6]byte)(mac)
-
-		return arr
+		return [6]byte(mac)
 	case 8:
-		arr := *(*[8]byte)(mac)
-
-		return arr
+		return [8]byte(mac)
 	case 20:
-		arr := *(*[20]byte)(mac)
-
-		return arr
+		return [20]byte(mac)
 	default:
-		panic("invalid mac address")
+		panic(fmt.Errorf("invalid mac address %#v", mac))
 	}
 }
 
 // clientIndex stores all information about persistent clients.
 type clientIndex struct {
+	// clientIDToUID maps client ID to UID.
 	clientIDToUID map[string]UID
 
+	// ipToUID maps IP address to UID.
 	ipToUID map[netip.Addr]UID
 
-	subnetToUID aghalg.SortedMap[netip.Prefix, UID]
-
+	// macToUID maps MAC address to UID.
 	macToUID map[macKey]UID
 
+	// uidToClient maps UID to the persistent client.
 	uidToClient map[UID]*persistentClient
+
+	// subnetToUID maps subnet to UID.
+	subnetToUID aghalg.SortedMap[netip.Prefix, UID]
 }
 
 // NewClientIndex initializes the new instance of client index.
@@ -56,9 +55,13 @@ func NewClientIndex() (ci *clientIndex) {
 	}
 }
 
-// add stores information about a persistent client in the index.  c must
-// contain UID.
+// add stores information about a persistent client in the index.  c must be
+// non-nil and contain UID.
 func (ci *clientIndex) add(c *persistentClient) {
+	if (c.UID == UID{}) {
+		panic("client must contain uid")
+	}
+
 	for _, id := range c.ClientIDs {
 		ci.clientIDToUID[id] = c.UID
 	}
@@ -80,7 +83,7 @@ func (ci *clientIndex) add(c *persistentClient) {
 }
 
 // clashes returns an error if the index contains a different persistent client
-// with at least a single identifier contained by c.
+// with at least a single identifier contained by c.  c must be non-nil.
 func (ci *clientIndex) clashes(c *persistentClient) (err error) {
 	for _, id := range c.ClientIDs {
 		existing, ok := ci.clientIDToUID[id]
@@ -109,7 +112,8 @@ func (ci *clientIndex) clashes(c *persistentClient) (err error) {
 	return nil
 }
 
-// clashesIP returns a previous client with the same IP address as c.
+// clashesIP returns a previous client with the same IP address as c.  c must be
+// non-nil.
 func (ci *clientIndex) clashesIP(c *persistentClient) (p *persistentClient, ip netip.Addr) {
 	for _, ip := range c.IPs {
 		existing, ok := ci.ipToUID[ip]
@@ -121,12 +125,13 @@ func (ci *clientIndex) clashesIP(c *persistentClient) (p *persistentClient, ip n
 	return nil, netip.Addr{}
 }
 
-// clashesSubnet returns a previous client with the same subnet as c.
+// clashesSubnet returns a previous client with the same subnet as c.  c must be
+// non-nil.
 func (ci *clientIndex) clashesSubnet(c *persistentClient) (p *persistentClient, s netip.Prefix) {
-	var existing UID
-	var ok bool
-
 	for _, s = range c.Subnets {
+		var existing UID
+		var ok bool
+
 		ci.subnetToUID.Range(func(p netip.Prefix, uid UID) (cont bool) {
 			if s == p {
 				existing = uid
@@ -146,7 +151,8 @@ func (ci *clientIndex) clashesSubnet(c *persistentClient) (p *persistentClient, 
 	return nil, netip.Prefix{}
 }
 
-// clashesMAC returns a previous client with the same MAC address as c.
+// clashesMAC returns a previous client with the same MAC address as c.  c must
+// be non-nil.
 func (ci *clientIndex) clashesMAC(c *persistentClient) (p *persistentClient, mac net.HardwareAddr) {
 	for _, mac = range c.MACs {
 		k := macToKey(mac)
@@ -219,7 +225,8 @@ func (ci *clientIndex) findByMAC(mac net.HardwareAddr) (c *persistentClient, fou
 	return nil, false
 }
 
-// del removes information about persistent client from the index.
+// del removes information about persistent client from the index.  c must be
+// non-nil.
 func (ci *clientIndex) del(c *persistentClient) {
 	for _, id := range c.ClientIDs {
 		delete(ci.clientIDToUID, id)

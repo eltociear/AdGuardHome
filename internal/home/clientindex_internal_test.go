@@ -1,6 +1,7 @@
 package home
 
 import (
+	"net"
 	"net/netip"
 	"testing"
 
@@ -112,5 +113,32 @@ func TestClientIndex(t *testing.T) {
 		ci.del(client1)
 		err = ci.clashes(dup)
 		require.NoError(t, err)
+	})
+}
+
+func TestMACToKey(t *testing.T) {
+	macs := []string{
+		"00:00:5e:00:53:01",
+		"02:00:5e:10:00:00:00:01",
+		"00:00:00:00:fe:80:00:00:00:00:00:00:02:00:5e:10:00:00:00:01",
+		"00-00-5e-00-53-01",
+		"02-00-5e-10-00-00-00-01",
+		"00-00-00-00-fe-80-00-00-00-00-00-00-02-00-5e-10-00-00-00-01",
+		"0000.5e00.5301",
+		"0200.5e10.0000.0001",
+		"0000.0000.fe80.0000.0000.0000.0200.5e10.0000.0001",
+	}
+
+	for _, m := range macs {
+		mac, err := net.ParseMAC(m)
+		require.NoError(t, err)
+
+		key := macToKey(mac)
+		assert.Len(t, key, len(mac))
+	}
+
+	assert.Panics(t, func() {
+		mac := net.HardwareAddr([]byte{1, 2, 3})
+		_ = macToKey(mac)
 	})
 }
